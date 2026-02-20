@@ -1,0 +1,55 @@
+# =========================
+# ROOT LEVEL IGNORE RULES
+# =========================
+
+# ---------- Node ----------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ---------- Python ----------
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ---------- Environment Files ----------
+.env
+.env.local
+.env.production
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ---------- Logs ----------
+logs/
+*.log
+error_log.txt
+
+# ---------- Coverage ----------
+coverage/
+.nyc_output/
+
+# ---------- Build ----------
+dist/
+build/
+
+# ---------- Generated Outputs ----------
+outputs/
+
+# ---------- IDE ----------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+
+# ---------- Python Service Specific ----------
+python-services/**/venv/
+python-services/**/__pycache__/

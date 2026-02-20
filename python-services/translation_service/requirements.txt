@@ -1,0 +1,7 @@
+# Translation Service Dependencies
+# FILE PATH: python-services/translation_service/requirements.txt
+
+Flask==2.3.2
+flask-cors==4.0.0
+googletrans==4.0.0rc1
+requests==2.31.0

@@ -1,0 +1,7 @@
+# FILE PATH: python-services/pdf_service/requirements.txt
+
+Flask==3.0.0
+Flask-CORS==4.0.0
+python-dotenv==1.0.0
+reportlab==4.0.7
+matplotlib==3.8.2
