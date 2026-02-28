@@ -81,7 +81,8 @@ const RegisterPage = () => {
         if (parseInt(formData.age) < 1 || parseInt(formData.age) > 120) return "Age must be between 1 and 120";
         if (new Date(formData.dateOfBirth) > new Date()) return "Date of Birth cannot be in the future";
         if (!/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) return "Phone must be exactly 10 digits";
-        if (formData.password.length < 6) return "Password must be at least 6 characters";
+        // ✅ FIX: Changed from 6 to 8 characters
+        if (formData.password.length < 8) return "Password must be at least 8 characters";
         if (formData.password !== formData.confirmPassword) return "Passwords do not match";
         return null;
     };
@@ -247,7 +248,7 @@ const RegisterPage = () => {
                                 <div className="relative">
                                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                                     <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange} required
-                                        placeholder="Min 6 characters" className="w-full pl-12 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium" />
+                                        placeholder="Min 8 characters" className="w-full pl-12 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium" />
                                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors">
                                         {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                     </button>
