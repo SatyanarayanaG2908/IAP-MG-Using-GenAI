@@ -2,26 +2,21 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 
-const generatePDF = (userData, symptoms, analysisResult, language) => {
+const generatePDF = (userData, symptoms, analysisResult) => {
     return new Promise((resolve, reject) => {
         try {
+            console.log("🚀 Starting PDF generation...");
+
             const doc = new PDFDocument({ margin: 50 });
 
-            // 🔥 CLEAN USERNAME
-            const cleanName = userData?.username
-                ? userData.username.replace(/\s+/g, '_').toLowerCase()
-                : 'user';
+            const cleanName = (userData?.username || 'user')
+                .replace(/\s+/g, '_')
+                .toLowerCase();
 
-            // 🔥 CURRENT DATE FORMAT (DD-MM-YYYY)
             const now = new Date();
-            const day = String(now.getDate()).padStart(2, '0');
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const year = now.getFullYear();
+            const date = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth()+1).padStart(2, '0')}-${now.getFullYear()}`;
 
-            const formattedDate = `${day}-${month}-${year}`;
-
-            // 🔥 FINAL FILE NAME
-            const fileName = `${cleanName}_report_${formattedDate}.pdf`;
+            const fileName = `${cleanName}_report_${date}.pdf`;
 
             const uploadDir = path.join(__dirname, '../public/reports');
 
@@ -34,82 +29,46 @@ const generatePDF = (userData, symptoms, analysisResult, language) => {
 
             doc.pipe(stream);
 
-            // ===== YOUR EXISTING PDF CONTENT =====
-
-            doc.fillColor('#444444')
-                .fontSize(20)
-                .text('Smart Medical Diagnosis Report', { align: 'center' })
-                .fontSize(10)
-                .text(new Date().toLocaleString(), { align: 'center' });
-
-            doc.moveDown();
-            doc.circle(550, 50, 20).fill('#667eea');
-
-            doc.fontSize(14).text('Patient Information', { underline: true });
-            doc.fontSize(12).text(`Name: ${userData.username}`);
-            doc.text(`Age: ${userData.age} | Gender: ${userData.gender}`);
-            doc.text(`Medical Conditions: ${userData.medical_conditions?.join(', ') || 'None'}`);
+            // ===== CONTENT =====
+            doc.fontSize(20).text('Medical Diagnosis Report', { align: 'center' });
             doc.moveDown();
 
-            doc.fontSize(14).text('Symptoms Reported', { underline: true });
-            doc.fontSize(12).text(symptoms);
-            doc.moveDown();
-
-            doc.fontSize(14).text('Diagnosis Results', { underline: true });
-
-            if (analysisResult.diseases) {
-                analysisResult.diseases.forEach((disease, i) => {
-                    doc.fontSize(12)
-                        .fillColor('#000000')
-                        .text(`${i + 1}. ${disease.name} (${disease.confidence}%)`);
-
-                    doc.fontSize(10)
-                        .fillColor('#666666')
-                        .text(disease.reasoning);
-
-                    doc.moveDown(0.5);
-                });
-            }
+            doc.fontSize(14).text('Patient Information');
+            doc.text(`Name: ${userData.username}`);
+            doc.text(`Age: ${userData.age}`);
+            doc.text(`Gender: ${userData.gender}`);
 
             doc.moveDown();
-
-            doc.fontSize(14)
-                .fillColor('#444444')
-                .text('Treatment Plan', { underline: true });
-
-            if (analysisResult.medical_plan?.medicines) {
-                analysisResult.medical_plan.medicines.forEach(med => {
-                    doc.fontSize(12)
-                        .fillColor('#000000')
-                        .text(`- ${med.name}: ${med.dosage} (${med.frequency})`);
-                });
-            }
+            doc.text('Symptoms');
+            doc.text(symptoms);
 
             doc.moveDown();
+            doc.text('Diagnosis');
 
-            doc.fontSize(10)
-                .fillColor('grey')
-                .text(
-                    'Disclaimer: This is an AI-generated report. Consult a doctor for professional advice.',
-                    50,
-                    doc.page.height - 50,
-                    { align: 'center' }
-                );
+            const diseases = analysisResult?.diseases || [];
+
+            diseases.forEach((d, i) => {
+                doc.text(`${i + 1}. ${d.name} (${d.confidence}%)`);
+            });
 
             doc.end();
 
             stream.on('finish', () => {
+                console.log("✅ PDF created:", filePath);
                 resolve({
                     success: true,
-                    url: `/reports/${fileName}`,
-                    filePath: filePath
+                    url: `/reports/${fileName}`
                 });
             });
 
-            stream.on('error', reject);
+            stream.on('error', (err) => {
+                console.error("❌ Stream error:", err);
+                reject(err);
+            });
 
-        } catch (error) {
-            reject(error);
+        } catch (err) {
+            console.error("❌ PDF error:", err);
+            reject(err);
         }
     });
 };

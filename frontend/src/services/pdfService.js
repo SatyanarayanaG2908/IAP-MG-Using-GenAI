@@ -1,38 +1,27 @@
-// FILE PATH: frontend/src/services/pdfService.js
-
 import api from './api';
-import { ENDPOINTS } from '../utils/constants';
+import { API_URL } from '../utils/constants';
 
 const pdfService = {
     generatePDF: async (sessionId) => {
         try {
-            const response = await api.post(ENDPOINTS.GENERATE_PDF, {
+            const response = await api.post('/api/pdf/generate', {
                 sessionId
             });
 
             if (response.data.success) {
                 const pdfUrl = response.data.pdfUrl;
 
-                // 🔥 OPEN PDF IN NEW TAB
-                const fullUrl = `${api.defaults.baseURL.replace('/api','')}${pdfUrl}`;
+                const fullUrl = `${API_URL.replace('/api','')}${pdfUrl}`;
+
+                // 🔥 OPEN PDF
                 window.open(fullUrl, '_blank');
 
-                return {
-                    success: true,
-                    message: 'PDF opened successfully'
-                };
+                return { success: true };
             }
 
-            return {
-                success: false,
-                message: 'Failed to generate PDF'
-            };
-
         } catch (error) {
-            return {
-                success: false,
-                message: error.message || 'PDF error'
-            };
+            console.error(error);
+            return { success: false };
         }
     }
 };
