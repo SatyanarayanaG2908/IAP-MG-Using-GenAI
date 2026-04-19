@@ -29,6 +29,7 @@ const schedulerService = require('./services/schedulerService');
 // Initialize express app
 const app = express();
 
+
 // ====================
 // MIDDLEWARE
 // ====================
@@ -36,12 +37,25 @@ const app = express();
 // Security headers
 app.use(helmet());
 
-// CORS configuration
-const corsOptions = {
-    origin: "*",
+// ✅ FIXED CORS CONFIG (IMPORTANT)
+const allowedOrigins = [
+    "https://iap-mg-using-genai-1.onrender.com",
+    "http://localhost:3000"
+];
+
+app.use(cors({
+    origin: function (origin, callback) {
+        // allow requests with no origin (like Postman)
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        } else {
+            return callback(new Error("CORS not allowed"));
+        }
+    },
     credentials: true,
-};
-app.use(cors(corsOptions));
+}));
 
 // Body parser
 app.use(express.json({ limit: '10mb' }));
@@ -55,6 +69,7 @@ if (process.env.NODE_ENV === 'development') {
 // Rate limiting
 app.use('/api', apiLimiter);
 
+
 // ====================
 // DATABASE CONNECTION
 // ====================
@@ -67,7 +82,6 @@ const connectDB = async () => {
         console.log(`📍 Database: ${conn.connection.name}`);
         console.log(`🔗 Host: ${conn.connection.host}`);
 
-        // Start scheduler after DB connection
         schedulerService.start();
     } catch (error) {
         console.error('❌ MongoDB connection error:', error.message);
@@ -75,14 +89,13 @@ const connectDB = async () => {
     }
 };
 
-// Connect to database
 connectDB();
+
 
 // ====================
 // ROUTES
 // ====================
 
-// Health check endpoint
 app.get('/health', async (req, res) => {
     const geminiStatus = geminiService.isAvailable();
     const schedulerStatus = schedulerService.getStatus();
@@ -92,24 +105,9 @@ app.get('/health', async (req, res) => {
         message: 'Server is running',
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV || 'development',
-        system: '100% Generative AI Powered (v3.0)',
         features: {
             geminiAI: geminiStatus ? '✅ Active' : '❌ Not Configured',
-            instantDiagnosis: '✅ Active',
-            emergencyDetection: '✅ Active',
-            pdfGeneration: '✅ Active',
-            smsReminders: '✅ Active',
-            emailReports: process.env.EMAIL_USER ? '✅ Active' : '❌ Not Configured',
-            multiLanguage: '✅ Active',
-            scheduler: schedulerStatus.smsScheduler === 'running' && schedulerStatus.emailScheduler === 'running'
-                ? '✅ Running'
-                : '⚠️ Partially Running',
-        },
-        scheduler: schedulerStatus,
-        aiModel: 'Google Gemini Pro',
-        documentation: {
-            postman: '/api/docs',
-            swagger: '/api/swagger',
+            scheduler: schedulerStatus,
         },
     });
 });
@@ -124,54 +122,27 @@ app.use('/api/user', userRoutes);
 
 // Root route
 app.get('/', (req, res) => {
-    res.status(200).json({
+    res.json({
         success: true,
-        message: 'IAP-MG Using GenAI API - 100% Generative AI Powered',
-        version: '3.0.0',
-        aiPowered: true,
-        model: 'Google Gemini Pro',
-        documentation: '/api/docs',
-        endpoints: {
-            health: '/health',
-            auth: '/api/auth',
-            diagnosis: '/api/diagnosis',
-            pdf: '/api/pdf',
-            sms: '/api/sms',
-            email: '/api/email',
-            user: '/api/user',
-        },
-        features: [
-            'Instant AI Diagnosis',
-            'Emergency Detection',
-            'Multi-language Support',
-            'PDF Report Generation',
-            'Email Reports with Attachments',
-            'SMS Reminders (Twilio)',
-            'Scheduled Reminders (Backend Cron Jobs)',
-            'Real-time Clock Matching',
-        ],
+        message: "Backend is running 🚀",
     });
 });
 
-// 404 handler
+// 404
 app.use((req, res) => {
     res.status(404).json({
         success: false,
         message: 'Route not found',
-        path: req.originalUrl,
-        availableEndpoints: {
-            health: '/health',
-            api: '/api',
-            docs: '/api/docs',
-        },
     });
 });
+
 
 // ====================
 // ERROR HANDLER
 // ====================
 
 app.use(errorHandler);
+
 
 // ====================
 // SERVER START
@@ -180,67 +151,20 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
-    console.log('\n=================================');
-    console.log('IAP-MG Using GenAI backend running on port ' + PORT);
-    console.log('📍 Environment:', process.env.NODE_ENV || 'development');
-    console.log('🔗 API Base URL:', `http://localhost:${PORT}/api`);
-    console.log('🤖 System: 100% Generative AI Powered');
-    console.log('🧠 AI Model: Google Gemini Pro');
-    console.log('✨ Features: Instant Diagnosis, Emergency Detection');
-    console.log('📧 Email:', process.env.EMAIL_USER ? '✅ Configured' : '⚠️  Not Configured');
-    console.log('📱 SMS:', process.env.TWILIO_ACCOUNT_SID ? '✅ Configured' : '⚠️  Not Configured');
-    console.log('🔑 Gemini API:', geminiService.isAvailable() ? '✅ Active' : '⚠️  Not Configured');
-    console.log('⏰ Scheduler: ✅ Running (Background Cron Jobs)');
-    console.log('=================================\n');
+    console.log(`🚀 Server running on port ${PORT}`);
 });
 
-// Handle unhandled promise rejections
+
+// ====================
+// ERROR HANDLING
+// ====================
+
 process.on('unhandledRejection', (err) => {
-    console.error('❌ Unhandled Rejection:', err.message);
-    console.error('Stack:', err.stack);
-    // Close server & exit process
-    server.close(() => {
-        process.exit(1);
-    });
+    console.error('Unhandled Rejection:', err.message);
+    server.close(() => process.exit(1));
 });
 
-// Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
-    console.error('❌ Uncaught Exception:', err.message);
-    console.error('Stack:', err.stack);
+    console.error('Uncaught Exception:', err.message);
     process.exit(1);
 });
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-    console.log('👋 SIGTERM signal received: closing HTTP server');
-
-    // Stop scheduler
-    schedulerService.stop();
-
-    server.close(() => {
-        console.log('💤 HTTP server closed');
-        mongoose.connection.close(false, () => {
-            console.log('💤 MongoDB connection closed');
-            process.exit(0);
-        });
-    });
-});
-
-// Handle SIGINT (Ctrl+C)
-process.on('SIGINT', () => {
-    console.log('\n👋 SIGINT signal received: closing HTTP server');
-
-    // Stop scheduler
-    schedulerService.stop();
-
-    server.close(() => {
-        console.log('💤 HTTP server closed');
-        mongoose.connection.close(false, () => {
-            console.log('💤 MongoDB connection closed');
-            process.exit(0);
-        });
-    });
-});
-
-module.exports = app;
