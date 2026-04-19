@@ -20,7 +20,7 @@ exports.generatePDF = async (userData, symptoms, analysisResult, language = 'Eng
                 language,
             },
             {
-                timeout: 30000, // 30 seconds
+                timeout: 30000,
                 responseType: 'blob',
             }
         );
@@ -41,6 +41,7 @@ exports.generatePDF = async (userData, symptoms, analysisResult, language = 'Eng
 
 /**
  * Schedule SMS reminders via Python service
+ * FIXED: reminderTimes, startDate, endDate now correctly passed
  */
 exports.scheduleSMS = async (reminders) => {
     try {
@@ -51,49 +52,39 @@ exports.scheduleSMS = async (reminders) => {
                     id: r._id.toString(),
                     phone: r.phone,
                     message: r.message,
-                    type: r.type,
-                    scheduled_for: r.scheduledFor,
-                    language: r.language,
+                    type: r.type || 'medicine',
+                    reminderTimes: r.reminderTimes || ['09:00'],  // ✅ FIXED
+                    startDate: r.startDate || new Date().toISOString().split('T')[0],  // ✅ FIXED
+                    endDate: r.endDate || new Date().toISOString().split('T')[0],      // ✅ FIXED
+                    language: r.language || 'English',
                 })),
             },
-            {
-                timeout: 10000,
-            }
+            { timeout: 10000 }
         );
 
-        return {
-            success: true,
-            data: response.data,
-        };
+        return { success: true, data: response.data };
     } catch (error) {
         console.error('Python SMS Service Error:', error.message);
+        // Don't fail the whole request if Python service is down
         return {
             success: false,
-            message: error.response?.data?.message || 'Failed to schedule SMS',
+            message: error.response?.data?.message || 'SMS service unavailable',
         };
     }
 };
 
 /**
- * Send test SMS via Python service
+ * Send test SMS via Python service (local only)
+ * Note: On Render deploy, smsController.sendTestSMS uses direct Twilio instead
  */
 exports.sendTestSMS = async (phone, language = 'English') => {
     try {
         const response = await axios.post(
             `${SMS_SERVICE_URL}/send-test-sms`,
-            {
-                phone,
-                language,
-            },
-            {
-                timeout: 10000,
-            }
+            { phone, language },
+            { timeout: 10000 }
         );
-
-        return {
-            success: true,
-            message: response.data.message,
-        };
+        return { success: true, message: response.data.message };
     } catch (error) {
         console.error('Python SMS Service Error:', error.message);
         return {
@@ -110,25 +101,12 @@ exports.translateText = async (text, targetLanguage = 'English') => {
     try {
         const response = await axios.post(
             `${TRANSLATION_SERVICE_URL}/translate`,
-            {
-                text,
-                target_language: targetLanguage,
-            },
-            {
-                timeout: 5000,
-            }
+            { text, target_language: targetLanguage },
+            { timeout: 5000 }
         );
-
-        return {
-            success: true,
-            translatedText: response.data.translated_text,
-        };
+        return { success: true, translatedText: response.data.translated_text };
     } catch (error) {
         console.error('Python Translation Service Error:', error.message);
-        return {
-            success: false,
-            translatedText: text, // Return original if translation fails
-        };
+        return { success: false, translatedText: text };
     }
 };
-
