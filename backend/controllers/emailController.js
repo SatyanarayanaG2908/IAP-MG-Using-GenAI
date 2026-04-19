@@ -92,12 +92,16 @@ exports.sendReport = async (req, res, next) => {
         }
 
         // Send email with PDF attachment
-        const result = await emailService.sendDiagnosisReport({
-            user: req.user,
-            session,
-            language: language || session.language || 'English',
-            pdfBuffer,
-        });
+        // Send email with PDF attachment
+        const result = await emailService.sendDiagnosisReport(
+            req.user.email,
+            req.user.firstName,
+            {
+                finalDisease: session.finalDisease,
+                symptoms: session.symptoms,
+            },
+            pdfBuffer
+        );
 
         if (result.success) {
             // Update session

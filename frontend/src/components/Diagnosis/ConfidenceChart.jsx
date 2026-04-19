@@ -1,139 +1,88 @@
 // FILE PATH: frontend/src/components/Diagnosis/ConfidenceChart.jsx
 
 import React from 'react';
-import {
-    PieChart, Pie, Cell, ResponsiveContainer,
-    BarChart, Bar, XAxis, YAxis, Tooltip, Legend
-} from 'recharts';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+// #1 Green, #2 Blue, #3 Orange
+const RANK_COLORS = ['#10b981', '#3b82f6', '#f59e0b'];
+const RANK_LABELS = ['Most Likely', 'Second Most Likely', 'Third Most Likely'];
+
+// Custom label outside the donut
+const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, value }) => {
+    const RADIAN = Math.PI / 180;
+    const radius = outerRadius + 20;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    return (
+        <text x={x} y={y} fill="#374151" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={12} fontWeight="600">
+            {`${value}%`}
+        </text>
+    );
+};
 
 const ConfidenceChart = ({ diseases }) => {
-    if (!diseases || diseases.length === 0) {
-        return null;
-    }
+    if (!diseases || diseases.length === 0) return null;
 
-    // Take top 3 diseases
-    const topDiseases = diseases.slice(0, 3);
-
-    // ── 3 DISTINCT PROFESSIONAL COLORS ──
-    const COLORS = [
-        '#2563eb', // Blue - Most likely (#1)
-        '#10b981', // Green - Second (#2)
-        '#f59e0b', // Amber/Orange - Third (#3)
-    ];
-
-    // Prepare data for charts
-    const pieData = topDiseases.map((disease, index) => ({
-        name: disease.name,
-        value: disease.confidence,
-        color: COLORS[index],
+    const data = diseases.slice(0, 3).map((d, i) => ({
+        name: d.name,
+        value: d.confidence || 0,
+        color: RANK_COLORS[i],
     }));
-
-    const barData = topDiseases.map((disease, index) => ({
-        name: disease.name.length > 30
-            ? disease.name.substring(0, 30) + '...'
-            : disease.name,
-        fullName: disease.name,
-        confidence: disease.confidence,
-        fill: COLORS[index],
-    }));
-
-    // Custom label for pie chart
-    const renderLabel = (entry) => {
-        return `${entry.value}%`;
-    };
-
-    // Custom tooltip
-    const CustomTooltip = ({ active, payload }) => {
-        if (active && payload && payload.length) {
-            return (
-                <div className="bg-white px-4 py-2 rounded-lg shadow-lg border border-gray-200">
-                    <p className="font-semibold text-gray-800 text-sm">
-                        {payload[0].payload.fullName || payload[0].name}
-                    </p>
-                    <p className="text-gray-600 text-sm">
-                        Confidence: <span className="font-bold">{payload[0].value}%</span>
-                    </p>
-                </div>
-            );
-        }
-        return null;
-    };
 
     return (
-        <div className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-gray-100">
-            <h3 className="text-xl font-bold text-gray-800 mb-6 text-center">
-                Confidence Levels
-            </h3>
+        <div className="w-full">
+            <h3 className="text-lg font-bold text-gray-900 text-center mb-6">Confidence Levels</h3>
 
-            <div className="grid md:grid-cols-2 gap-8">
-
-                {/* ── PIE CHART ── */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                {/* Donut Chart — proper shape */}
                 <div>
-                    <h4 className="text-center text-sm font-semibold text-gray-600 mb-4">
-                        Confidence Distribution
-                    </h4>
+                    <p className="text-sm font-semibold text-gray-500 text-center mb-2">Confidence Distribution</p>
                     <ResponsiveContainer width="100%" height={250}>
                         <PieChart>
                             <Pie
-                                data={pieData}
+                                data={data}
                                 cx="50%"
                                 cy="50%"
-                                labelLine={false}
-                                label={renderLabel}
-                                outerRadius={80}
-                                innerRadius={40}
+                                innerRadius={55}
+                                outerRadius={95}
                                 paddingAngle={2}
                                 dataKey="value"
+                                labelLine={false}
+                                label={renderCustomLabel}
                             >
-                                {pieData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                {data.map((entry, i) => (
+                                    <Cell key={i} fill={entry.color} stroke="white" strokeWidth={2} />
                                 ))}
                             </Pie>
-                            <Tooltip content={<CustomTooltip />} />
+                            <Tooltip
+                                formatter={(value, name) => [`${value}%`, name]}
+                                contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: 12 }}
+                            />
                         </PieChart>
                     </ResponsiveContainer>
-
-                    {/* Legend for Pie */}
-                    <div className="flex flex-col gap-2 mt-4">
-                        {topDiseases.map((disease, index) => (
-                            <div key={index} className="flex items-center gap-2 text-sm">
-                                <div
-                                    className="w-4 h-4 rounded"
-                                    style={{ backgroundColor: COLORS[index] }}
-                                />
-                                <span className="text-gray-700 truncate flex-1">
-                                    {disease.name}
-                                </span>
-                                <span className="font-bold text-gray-800">
-                                    {disease.confidence}%
-                                </span>
-                            </div>
-                        ))}
-                    </div>
                 </div>
 
-                {/* ── BAR CHART ── */}
+                {/* Bar Chart */}
                 <div>
-                    <h4 className="text-center text-sm font-semibold text-gray-600 mb-4">
-                        Probability Analysis
-                    </h4>
+                    <p className="text-sm font-semibold text-gray-500 text-center mb-2">Probability Analysis</p>
                     <ResponsiveContainer width="100%" height={250}>
-                        <BarChart
-                            data={barData}
-                            layout="vertical"
-                            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                        >
-                            <XAxis type="number" domain={[0, 100]} />
+                        <BarChart data={data} layout="vertical" margin={{ left: 0, right: 40, top: 10, bottom: 10 }}>
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                            <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} />
                             <YAxis
                                 type="category"
                                 dataKey="name"
-                                width={150}
-                                tick={{ fontSize: 12 }}
+                                width={110}
+                                tick={{ fontSize: 11 }}
+                                tickFormatter={(v) => v.length > 16 ? v.substring(0, 16) + '...' : v}
                             />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Bar dataKey="confidence" radius={[0, 8, 8, 0]}>
-                                {barData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                            <Tooltip
+                                formatter={(value) => [`${value}%`, 'Confidence']}
+                                contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: 12 }}
+                            />
+                            <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+                                {data.map((entry, i) => (
+                                    <Cell key={i} fill={entry.color} />
                                 ))}
                             </Bar>
                         </BarChart>
@@ -141,22 +90,27 @@ const ConfidenceChart = ({ diseases }) => {
                 </div>
             </div>
 
-            {/* Color Guide */}
-            <div className="mt-6 pt-6 border-t border-gray-200">
-                <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-gray-500">
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-blue-600 rounded" />
-                        <span>Most Likely</span>
+            {/* Percentage list */}
+            <div className="mt-2 space-y-2 px-2">
+                {data.map((d, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
+                            <span className="text-sm text-gray-700">{d.name}</span>
+                        </div>
+                        <span className="text-sm font-bold text-gray-900">{d.value}%</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-green-500 rounded" />
-                        <span>Second Most Likely</span>
+                ))}
+            </div>
+
+            {/* Legend */}
+            <div className="flex items-center justify-center gap-6 flex-wrap mt-4">
+                {RANK_LABELS.slice(0, data.length).map((label, i) => (
+                    <div key={i} className="flex items-center gap-1.5">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: RANK_COLORS[i] }} />
+                        <span className="text-xs text-gray-500">{label}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-amber-500 rounded" />
-                        <span>Third Most Likely</span>
-                    </div>
-                </div>
+                ))}
             </div>
         </div>
     );

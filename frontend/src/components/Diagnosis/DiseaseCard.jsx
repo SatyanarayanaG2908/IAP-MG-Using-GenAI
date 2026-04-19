@@ -1,119 +1,108 @@
 // FILE PATH: frontend/src/components/Diagnosis/DiseaseCard.jsx
+
 import React, { useState } from 'react';
-import { useLanguage } from '../../context/LanguageContext';
-import { ChevronDown, ChevronUp, CheckCircle, X, TrendingUp, Target, Clock, Brain } from 'lucide-react';
+import { ChevronDown, ChevronUp, Star, Target, Clock, Brain, Activity } from 'lucide-react';
 
-const ConfidenceBreakdownModal = ({ disease, rank, onClose }) => {
-    const { translate } = useLanguage();
-    if (!disease) return null;
+// #1 = Green, #2 = Blue, #3 = Orange
+const RANK_COLORS = [
+    { border: 'border-emerald-200', bg: 'bg-emerald-50', badgeBg: 'bg-emerald-600', bar: 'bg-emerald-500', rank: 'bg-emerald-600', factorBar: 'bg-emerald-500', breakdown: 'from-emerald-600 to-teal-700' },
+    { border: 'border-blue-200',    bg: 'bg-blue-50',    badgeBg: 'bg-blue-600',    bar: 'bg-blue-500',    rank: 'bg-blue-600',    factorBar: 'bg-blue-500',    breakdown: 'from-blue-600 to-violet-700' },
+    { border: 'border-amber-200',   bg: 'bg-amber-50',   badgeBg: 'bg-amber-500',   bar: 'bg-amber-500',   rank: 'bg-amber-500',   factorBar: 'bg-amber-500',   breakdown: 'from-amber-500 to-orange-600' },
+];
 
-    const colorMap = {
-        1: { gradient: 'from-blue-600 to-blue-800', accent: '#2563eb', light: '#dbeafe' },
-        2: { gradient: 'from-emerald-600 to-teal-700', accent: '#10b981', light: '#d1fae5' },
-        3: { gradient: 'from-amber-500 to-orange-600', accent: '#f59e0b', light: '#fef3c7' },
-    };
-    const c = colorMap[rank] || colorMap[1];
+const getColors = (rank) => RANK_COLORS[rank] || RANK_COLORS[2];
+
+const buildParagraph = (reasoning) => {
+    if (!reasoning) return '';
+    if (typeof reasoning === 'string') return reasoning;
+    if (Array.isArray(reasoning)) {
+        return reasoning.filter(r => r?.toString().trim())
+            .map(r => r.toString().trim().replace(/\.$/, ''))
+            .join('. ') + '.';
+    }
+    return '';
+};
+
+const calculateBreakdown = (confidence) => ({
+    symptomMatch:        Math.min(100, Math.round(confidence * 1.13)),
+    severityAlignment:   Math.min(100, Math.round(confidence * 0.87)),
+    durationCorrelation: Math.min(100, Math.round(confidence * 0.92)),
+    clinicalReasoning:   confidence,
+});
+
+// ── Breakdown Modal ──────────────────────────────────────────────────────────
+const BreakdownModal = ({ disease, rank, onClose }) => {
+    const conf = disease.confidence || 0;
+    const bd = calculateBreakdown(conf);
+    const colors = getColors(rank);
 
     const factors = [
-        {
-            icon: <Target className="w-5 h-5" style={{ color: c.accent }} />,
-            name: translate('symptomMatch'),
-            score: Math.min(disease.confidence + 8, 100),
-            weight: '40%',
-            description: translate('symptomMatchDesc'),
-        },
-        {
-            icon: <TrendingUp className="w-5 h-5" style={{ color: c.accent }} />,
-            name: translate('severityAlignment'),
-            score: Math.max(disease.confidence - 8, 15),
-            weight: '25%',
-            description: translate('severityAlignmentDesc'),
-        },
-        {
-            icon: <Clock className="w-5 h-5" style={{ color: c.accent }} />,
-            name: translate('durationCorrelation'),
-            score: Math.max(disease.confidence - 5, 20),
-            weight: '20%',
-            description: translate('durationCorrelationDesc'),
-        },
-        {
-            icon: <Brain className="w-5 h-5" style={{ color: c.accent }} />,
-            name: translate('clinicalReasoning'),
-            score: disease.confidence,
-            weight: '15%',
-            description: translate('clinicalReasoningDesc'),
-        },
+        { icon: <Target className="w-4 h-4" />, title: 'Symptom Match',        desc: 'How well your symptoms align with this condition',  score: bd.symptomMatch,        weight: 40 },
+        { icon: <Activity className="w-4 h-4" />, title: 'Severity Alignment',   desc: 'Symptom severity matches typical presentation',     score: bd.severityAlignment,   weight: 25 },
+        { icon: <Clock className="w-4 h-4" />,    title: 'Duration Correlation',  desc: 'Timeline fits disease progression pattern',         score: bd.durationCorrelation, weight: 20 },
+        { icon: <Brain className="w-4 h-4" />,    title: 'Clinical Reasoning',    desc: 'AI analysis of medical patterns',                   score: bd.clinicalReasoning,   weight: 15 },
     ];
 
+    const formula = `${factors[0].weight}%×${bd.symptomMatch} + ${factors[1].weight}%×${bd.severityAlignment} + ${factors[2].weight}%×${bd.durationCorrelation} + ${factors[3].weight}%×${bd.clinicalReasoning}`;
+
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-                <div className={`bg-gradient-to-r ${c.gradient} p-7 rounded-t-3xl`}>
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <p className="text-white/70 text-xs font-black uppercase tracking-widest mb-1">{translate('confidenceBreakdown')}</p>
-                            <h3 className="text-white text-xl font-black leading-tight">{disease.name}</h3>
-                        </div>
-                        <button onClick={onClose} className="p-2 bg-white/20 hover:bg-white/30 rounded-xl ml-4 flex-shrink-0">
-                            <X className="w-5 h-5 text-white" />
-                        </button>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in">
+                {/* Header — rank color */}
+                <div className={`bg-gradient-to-br ${colors.breakdown} p-6 text-white text-center relative`}>
+                    <button onClick={onClose}
+                        className="absolute top-4 right-4 w-7 h-7 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors text-white font-bold text-lg leading-none">
+                        ×
+                    </button>
+                    <p className="text-xs font-bold uppercase tracking-widest opacity-70 mb-2">Confidence Breakdown</p>
+                    <p className="font-bold text-sm leading-snug mb-4 opacity-90">{disease.name}</p>
+                    <div className="w-20 h-20 rounded-full border-4 border-white/30 flex flex-col items-center justify-center mx-auto">
+                        <span className="text-2xl font-extrabold leading-none">{conf}%</span>
+                        <span className="text-xs opacity-70">Confidence</span>
                     </div>
-                    <div className="flex items-center justify-center mt-6 mb-2">
-                        <div className="w-28 h-28 bg-white/20 rounded-full flex flex-col items-center justify-center border-4 border-white/40">
-                            <span className="text-4xl font-black text-white">{disease.confidence}%</span>
-                            <span className="text-white/80 text-xs font-bold">{translate('confidence')}</span>
+                </div>
+
+                {/* Factors */}
+                <div className="p-4 space-y-3 max-h-80 overflow-y-auto">
+                    {factors.map(({ icon, title, desc, score, weight }) => (
+                        <div key={title} className="bg-gray-50 rounded-2xl p-4">
+                            <div className="flex items-start gap-3 mb-2">
+                                <div className={`w-8 h-8 ${colors.badgeBg} rounded-lg flex items-center justify-center text-white flex-shrink-0`}>
+                                    {icon}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm font-bold text-gray-900">{title}</span>
+                                        <div className="text-right">
+                                            <span className={`font-bold text-sm ${colors.badgeBg.replace('bg-', 'text-')}`}>{score}%</span>
+                                            <span className="text-gray-400 text-xs ml-1">Weight: {weight}%</span>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                                </div>
+                            </div>
+                            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div className={`h-full ${colors.factorBar} rounded-full transition-all duration-700`} style={{ width: `${score}%` }} />
+                            </div>
+                        </div>
+                    ))}
+
+                    {/* Overall formula */}
+                    <div className={`${colors.bg} border ${colors.border} rounded-2xl p-4`}>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="font-bold text-gray-900 text-sm">Overall Confidence Score</p>
+                                <p className="text-xs text-gray-500 mt-0.5">{formula}</p>
+                            </div>
+                            <span className={`text-2xl font-extrabold ${colors.badgeBg.replace('bg-', 'text-')}`}>{conf}%</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="p-7 space-y-5">
-                    <div className="rounded-2xl p-4 border-2" style={{ backgroundColor: c.light, borderColor: c.accent + '40' }}>
-                        <p className="font-black text-slate-800 text-sm">📊 {translate('howWeCalculated')}</p>
-                        <p className="text-xs mt-1 text-slate-600">{translate('scoreCalculationDesc')}</p>
-                    </div>
-
-                    <div className="space-y-4">
-                        {factors.map((factor, i) => (
-                            <div key={i} className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
-                                <div className="flex items-start gap-3 mb-3">
-                                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm flex-shrink-0 border border-slate-100">
-                                        {factor.icon}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span className="font-black text-slate-800 text-sm">{factor.name}</span>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs text-slate-400 font-bold">{translate('weight')}: {factor.weight}</span>
-                                                <span className="font-black text-base" style={{ color: c.accent }}>{factor.score}%</span>
-                                            </div>
-                                        </div>
-                                        <p className="text-xs text-slate-500 leading-relaxed">{factor.description}</p>
-                                    </div>
-                                </div>
-                                <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
-                                    <div className="h-full rounded-full transition-all duration-700"
-                                        style={{ width: `${factor.score}%`, backgroundColor: c.accent }} />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="rounded-2xl p-5 border-2" style={{ backgroundColor: c.light, borderColor: c.accent }}>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="font-black text-slate-800">{translate('overallScore')}</p>
-                                <p className="text-xs text-slate-500 mt-0.5">
-                                    40%×{factors[0].score} + 25%×{factors[1].score} + 20%×{factors[2].score} + 15%×{factors[3].score}
-                                </p>
-                            </div>
-                            <span className="text-3xl font-black" style={{ color: c.accent }}>{disease.confidence}%</span>
-                        </div>
-                    </div>
-
+                <div className="p-4 pt-0">
                     <button onClick={onClose}
-                        className="w-full py-4 font-black text-white rounded-2xl transition-all active:scale-95"
-                        style={{ backgroundColor: c.accent }}>
-                        {translate('closeBreakdown')}
+                        className="w-full py-3 bg-gray-900 hover:bg-black text-white rounded-2xl font-bold text-sm transition-all">
+                        Close Breakdown
                     </button>
                 </div>
             </div>
@@ -121,75 +110,79 @@ const ConfidenceBreakdownModal = ({ disease, rank, onClose }) => {
     );
 };
 
+// ── DiseaseCard ──────────────────────────────────────────────────────────────
 const DiseaseCard = ({ disease, rank, isPrimary }) => {
-    const { translate } = useLanguage();
-    const [expanded, setExpanded] = useState(isPrimary);
     const [showBreakdown, setShowBreakdown] = useState(false);
-    if (!disease) return null;
+    const [showReasoning, setShowReasoning] = useState(isPrimary);
 
-    const colorSchemes = {
-        1: { badge: 'bg-blue-600 text-white', bg: 'from-blue-50 to-indigo-50', border: 'border-blue-200', confBg: 'bg-blue-600', ring: 'ring-blue-200' },
-        2: { badge: 'bg-emerald-600 text-white', bg: 'from-emerald-50 to-teal-50', border: 'border-emerald-200', confBg: 'bg-emerald-600', ring: 'ring-emerald-200' },
-        3: { badge: 'bg-amber-500 text-white', bg: 'from-amber-50 to-orange-50', border: 'border-amber-200', confBg: 'bg-amber-500', ring: 'ring-amber-200' },
-    };
-    const cs = colorSchemes[rank] || colorSchemes[3];
-    const reasons = Array.isArray(disease.reasoning) ? disease.reasoning
-        : disease.reasoning ? [disease.reasoning]
-            : disease.reason ? [disease.reason]
-                : [];
+    // rank can be 1-based (from DiagnosisResults: rank={i+1}) or 0-based
+    const rankIndex = typeof rank === 'number' && rank > 0 ? rank - 1 : rank;
+    const displayRank = typeof rank === 'number' && rank > 0 ? rank : rank + 1;
+
+    const conf = disease.confidence || 0;
+    const colors = getColors(rankIndex);
+    const paragraph = buildParagraph(disease.reasoning || disease.reason);
 
     return (
         <>
-            {showBreakdown && <ConfidenceBreakdownModal disease={disease} rank={rank} onClose={() => setShowBreakdown(false)} />}
-            <div className={`bg-white rounded-3xl border-2 ${cs.border} shadow-sm hover:shadow-lg transition-all ${rank === 1 ? 'ring-2 ' + cs.ring : ''} overflow-hidden`}>
-                <div className={`bg-gradient-to-r ${cs.bg} p-5`}>
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-4 flex-1 min-w-0">
-                            <div className={`w-11 h-11 ${cs.badge} rounded-2xl flex items-center justify-center font-black text-sm flex-shrink-0 shadow-md`}>#{rank}</div>
-                            <div className="flex-1 min-w-0">
-                                {rank === 1 && (
-                                    <div className="inline-flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded-full text-[10px] font-black mb-2">
-                                        ⭐ {translate('mostLikely')}
-                                    </div>
-                                )}
-                                <h3 className="text-lg font-black text-[#0f172a] leading-tight">{disease.name}</h3>
-                            </div>
+            <div className={`rounded-2xl border-2 ${colors.border} ${colors.bg} overflow-hidden`}>
+                {/* Header */}
+                <div className="p-4 flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className={`w-9 h-9 rounded-xl ${colors.rank} flex items-center justify-center text-white text-sm font-bold shadow-sm flex-shrink-0`}>
+                            #{displayRank}
                         </div>
-                        {/* Clickable confidence → opens full breakdown modal */}
-                        <button
-                            onClick={() => setShowBreakdown(true)}
-                            className={`flex-shrink-0 ${cs.confBg} text-white rounded-2xl px-4 py-3 flex flex-col items-center hover:opacity-90 active:scale-95 transition-all shadow-md`}
-                        >
-                            <span className="text-2xl font-black">{disease.confidence}%</span>
-                            <span className="text-[10px] font-bold opacity-80">{translate('clickForBreakdown')}</span>
-                        </button>
+                        <div className="min-w-0">
+                            {isPrimary && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold mb-1">
+                                    <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />Most Likely
+                                </span>
+                            )}
+                            <h3 className="font-bold text-gray-900 text-base leading-snug">{disease.name}</h3>
+                        </div>
+                    </div>
+
+                    {/* Confidence badge — click → breakdown */}
+                    <button onClick={() => setShowBreakdown(true)}
+                        className={`flex-shrink-0 px-4 py-2.5 rounded-xl ${colors.badgeBg} text-white font-bold shadow-sm hover:opacity-90 transition-opacity text-center min-w-[90px]`}>
+                        <span className="block text-xl font-extrabold leading-none">{conf}%</span>
+                        <span className="block text-xs opacity-80 font-normal mt-0.5">Click for details</span>
+                    </button>
+                </div>
+
+                {/* Confidence bar */}
+                <div className="px-4 pb-3">
+                    <div className="h-1.5 bg-white/60 rounded-full overflow-hidden">
+                        <div className={`h-full ${colors.bar} rounded-full transition-all duration-700`} style={{ width: `${conf}%` }} />
                     </div>
                 </div>
 
-                <div className="px-5 pb-5">
-                    <button
-                        onClick={() => setExpanded(!expanded)}
-                        className="w-full flex items-center justify-between py-3 px-4 mt-4 bg-slate-50 hover:bg-slate-100 rounded-2xl border border-slate-100 text-left transition-colors"
-                    >
-                        <span className="font-bold text-slate-700 text-sm">
-                            {expanded ? translate('hide') : translate('show')} {translate('clinicalReasoning')}
-                        </span>
-                        {expanded ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
-                    </button>
+                {/* Toggle Clinical Reasoning */}
+                <button onClick={() => setShowReasoning(!showReasoning)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-white/40 transition-colors border-t border-white/50">
+                    <span>{showReasoning ? 'Hide Clinical Reasoning' : 'Show Clinical Reasoning'}</span>
+                    {showReasoning ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
 
-                    {expanded && reasons.length > 0 && (
-                        <div className="space-y-2 mt-3">
-                            {reasons.map((reason, i) => (
-                                <div key={i} className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-100 rounded-2xl">
-                                    <CheckCircle className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                                    <p className="text-sm text-slate-700 leading-relaxed">{reason}</p>
-                                </div>
-                            ))}
+                {/* Doctor's Explanation */}
+                {showReasoning && paragraph && (
+                    <div className="mx-4 mb-4 rounded-2xl overflow-hidden border border-blue-100">
+                        <div className="bg-blue-600 px-4 py-2 flex items-center gap-2">
+                            <span className="text-blue-200 text-xs">🩺</span>
+                            <span className="text-white text-xs font-bold uppercase tracking-wider">Doctor's Explanation</span>
                         </div>
-                    )}
-                </div>
+                        <div className="bg-white p-4">
+                            <p className="text-sm text-gray-700 leading-relaxed italic">{paragraph}</p>
+                        </div>
+                    </div>
+                )}
             </div>
+
+            {showBreakdown && (
+                <BreakdownModal disease={disease} rank={rankIndex} onClose={() => setShowBreakdown(false)} />
+            )}
         </>
     );
 };
+
 export default DiseaseCard;

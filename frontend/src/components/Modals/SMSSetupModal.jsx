@@ -1,201 +1,249 @@
 // FILE PATH: frontend/src/components/Modals/SMSSetupModal.jsx
 
 import React, { useState } from 'react';
-import { Bell, X, Plus, Trash2, Send, CheckCircle, AlertCircle } from 'lucide-react';
-import { useLanguage } from '../../context/LanguageContext';
+import { X, Phone, Clock, Calendar, Plus, Trash2, Bell, Send } from 'lucide-react';
 import api from '../../services/api';
 
 const SMSSetupModal = ({ isOpen, onClose, sessionId, topDisease, medicines = [] }) => {
-    const { translate } = useLanguage();
+    const today = new Date().toISOString().split('T')[0];
+    const oneWeekLater = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
     const [phone, setPhone] = useState('');
-    const [medicineName, setMedicineName] = useState(medicines[0]?.name || '');
+    const [medicineName, setMedicineName] = useState(medicines?.[0]?.name || '');
     const [reminderTimes, setReminderTimes] = useState(['09:00', '21:00']);
-    const [enableMedicineReminder, setEnableMedicineReminder] = useState(true);
-    const [enableFollowUp, setEnableFollowUp] = useState(false);
-    const [followUpDate, setFollowUpDate] = useState('');
+    const [startDate, setStartDate] = useState(today);
+    const [endDate, setEndDate] = useState(oneWeekLater);
+    const [enableMedicine, setEnableMedicine] = useState(true);
+    const [enableFollowup, setEnableFollowup] = useState(false);
+    const [followupDate, setFollowupDate] = useState('');
     const [loading, setLoading] = useState(false);
-    const [testSMSLoading, setTestSMSLoading] = useState(false);
-    const [notification, setNotification] = useState(null);
-
-    const showNotification = (type, message) => {
-        setNotification({ type, message });
-        setTimeout(() => setNotification(null), 4000);
-    };
-
-    const handleAddTime = () => { if (reminderTimes.length < 6) setReminderTimes([...reminderTimes, '12:00']); };
-    const handleRemoveTime = (i) => { if (reminderTimes.length > 1) setReminderTimes(reminderTimes.filter((_, idx) => idx !== i)); };
-    const handleTimeChange = (i, val) => { const u = [...reminderTimes]; u[i] = val; setReminderTimes(u); };
-
-    const handleSendTestSMS = async () => {
-        if (!phone.trim()) { showNotification('error', 'Please enter phone number'); return; }
-        setTestSMSLoading(true);
-        try {
-            const res = await api.post('/sms/test', { phone: phone.trim(), language: 'English' });
-            if (res.data.success) showNotification('success', '✅ Test SMS sent successfully!');
-            else showNotification('error', res.data.message || 'Test SMS failed');
-        } catch (err) {
-            showNotification('error', err.response?.data?.message || 'Test SMS failed. Check Twilio credentials.');
-        } finally { setTestSMSLoading(false); }
-    };
-
-    const handleScheduleReminders = async () => {
-        if (!phone.trim()) { showNotification('error', 'Please enter phone number'); return; }
-        if (enableMedicineReminder && !medicineName.trim()) { showNotification('error', 'Please enter medicine name'); return; }
-        if (enableFollowUp && !followUpDate) { showNotification('error', 'Please select follow-up date'); return; }
-        if (!enableMedicineReminder && !enableFollowUp) { showNotification('error', 'Please select at least one reminder type'); return; }
-
-        setLoading(true);
-        try {
-            const res = await api.post('/sms/setup-reminders', {
-                sessionId, phone: phone.trim(),
-                medicineName: enableMedicineReminder ? medicineName.trim() : 'General',
-                reminderTimes: enableMedicineReminder ? reminderTimes : [],
-                followUpDate: enableFollowUp ? followUpDate : null,
-                language: 'English',
-            });
-            if (res.data.success) {
-                showNotification('success', '✅ SMS Reminders scheduled successfully!');
-                setTimeout(() => onClose(), 1500);
-            } else {
-                showNotification('error', res.data.message || 'Failed to schedule reminders');
-            }
-        } catch (err) {
-            showNotification('error', err.response?.data?.message || 'Failed to schedule. Check backend.');
-            setTimeout(() => onClose(), 2000);
-        } finally { setLoading(false); }
-    };
+    const [testLoading, setTestLoading] = useState(false);
+    const [message, setMessage] = useState({ type: '', text: '' });
 
     if (!isOpen) return null;
 
+    const addTime = () => {
+        if (reminderTimes.length < 6) setReminderTimes([...reminderTimes, '12:00']);
+    };
+
+    const removeTime = (i) => {
+        if (reminderTimes.length > 1) setReminderTimes(reminderTimes.filter((_, idx) => idx !== i));
+    };
+
+    const updateTime = (i, val) => {
+        const updated = [...reminderTimes];
+        updated[i] = val;
+        setReminderTimes(updated);
+    };
+
+    const handleTestSMS = async () => {
+        if (!phone) { setMessage({ type: 'error', text: 'Please enter phone number' }); return; }
+        setTestLoading(true);
+        try {
+            const res = await api.post('/sms/test', { phone: `+91${phone}` });
+            if (res.data?.success) setMessage({ type: 'success', text: '✅ Test SMS sent!' });
+            else setMessage({ type: 'error', text: res.data?.message || 'Test SMS failed' });
+        } catch (err) {
+            setMessage({ type: 'error', text: err.response?.data?.message || 'Test SMS failed' });
+        } finally { setTestLoading(false); }
+    };
+
+    const handleSubmit = async () => {
+        if (!phone) { setMessage({ type: 'error', text: 'Phone number required' }); return; }
+        if (!startDate || !endDate) { setMessage({ type: 'error', text: 'Start and end dates required' }); return; }
+        if (new Date(endDate) <= new Date(startDate)) { setMessage({ type: 'error', text: 'End date must be after start date' }); return; }
+
+        setLoading(true);
+        try {
+            const payload = {
+                sessionId,
+                phone: `+91${phone}`,
+                medicineName: enableMedicine ? medicineName : null,
+                reminderTimes: enableMedicine ? reminderTimes : [],
+                startDate,
+                endDate,
+                followUpDate: enableFollowup ? followupDate : null,
+                language: 'English',
+            };
+
+            const res = await api.post('/sms/setup-reminders', payload);
+            if (res.data?.success) {
+                setMessage({ type: 'success', text: '✅ SMS reminders scheduled successfully!' });
+                setTimeout(() => onClose(), 2000);
+            } else {
+                setMessage({ type: 'error', text: res.data?.message || 'Failed to setup reminders' });
+            }
+        } catch (err) {
+            setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to setup reminders' });
+        } finally { setLoading(false); }
+    };
+
     return (
-        // Fixed full-screen overlay — works from ANY page
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-fade-in">
+
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-slate-100">
+                <div className="flex items-center justify-between p-6 border-b border-gray-100 sticky top-0 bg-white rounded-t-3xl z-10">
                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center">
-                            <Bell className="w-6 h-6 text-amber-600" />
+                        <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                            <Bell className="w-5 h-5 text-amber-600" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-black text-slate-900">SMS Reminders</h2>
-                            <p className="text-xs text-slate-400 font-medium">Schedule medicine & follow-up alerts</p>
+                            <h3 className="font-black text-gray-900">SMS Reminders</h3>
+                            <p className="text-xs text-gray-400">Set up medicine alerts</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
-                        <X className="w-5 h-5 text-slate-500" />
+                    <button onClick={onClose} className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors">
+                        <X className="w-4 h-4 text-gray-500" />
                     </button>
                 </div>
 
-                {/* Notification */}
-                {notification && (
-                    <div className={`mx-6 mt-4 p-3 rounded-2xl flex items-center gap-2 text-sm font-bold ${notification.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}`}>
-                        {notification.type === 'success' ? <CheckCircle className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
-                        {notification.message}
-                    </div>
-                )}
-
                 <div className="p-6 space-y-5">
-                    {/* Top disease info */}
+
+                    {/* Condition badge */}
                     {topDisease && (
                         <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4">
-                            <p className="text-xs font-black text-blue-400 uppercase tracking-widest mb-1">For Condition</p>
-                            <p className="font-bold text-blue-800 text-sm">{topDisease}</p>
+                            <p className="text-xs font-bold text-blue-400 uppercase tracking-wider">For Condition</p>
+                            <p className="text-blue-700 font-bold mt-1">{topDisease}</p>
                         </div>
                     )}
 
-                    {/* Phone input */}
+                    {/* Phone */}
                     <div>
                         <div className="flex items-center justify-between mb-2">
-                            <label className="text-sm font-bold text-slate-700">Phone Number <span className="text-rose-500">*</span></label>
-                            <button onClick={handleSendTestSMS} disabled={testSMSLoading || !phone.trim()}
-                                className="flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-xl disabled:opacity-50 font-bold transition-all">
-                                {testSMSLoading
-                                    ? <><div className="w-3 h-3 border border-blue-600 border-t-transparent rounded-full animate-spin" />Sending...</>
-                                    : <><Send className="w-3 h-3" />Test SMS</>}
+                            <label className="text-sm font-bold text-gray-700 flex items-center gap-1.5">
+                                <Phone className="w-3.5 h-3.5" />Phone Number *
+                            </label>
+                            <button onClick={handleTestSMS} disabled={testLoading}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-bold transition-all disabled:opacity-50">
+                                <Send className="w-3 h-3" />
+                                {testLoading ? 'Sending...' : 'Test SMS'}
                             </button>
                         </div>
-                        <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                            placeholder="+91 9876543210"
-                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl focus:border-amber-400 focus:ring-4 focus:ring-amber-50 outline-none text-sm font-medium" />
-                        <p className="text-xs text-slate-400 mt-1 ml-1">Format: +919876543210</p>
+                        <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5 px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600">
+                                🇮🇳 +91
+                            </div>
+                            <input type="tel" value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                placeholder="9876543210" maxLength={10}
+                                className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 transition-all" />
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1">Format: +919876543210</p>
                     </div>
 
-                    {/* Medicine reminder */}
-                    <div className="border-2 border-slate-100 rounded-2xl p-4">
-                        <label className="flex items-center gap-3 cursor-pointer mb-3">
-                            <input type="checkbox" checked={enableMedicineReminder} onChange={e => setEnableMedicineReminder(e.target.checked)}
-                                className="w-4 h-4 text-amber-600 rounded accent-amber-600" />
-                            <span className="text-sm font-bold text-slate-700">💊 Medicine Reminders</span>
-                        </label>
-                        {enableMedicineReminder && (
-                            <div className="space-y-3 ml-7">
+                    {/* Start & End Date */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-sm font-bold text-gray-700 flex items-center gap-1.5 mb-2">
+                                <Calendar className="w-3.5 h-3.5 text-emerald-500" />Start Date *
+                            </label>
+                            <input type="date" value={startDate} min={today}
+                                onChange={e => setStartDate(e.target.value)}
+                                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-100 transition-all" />
+                        </div>
+                        <div>
+                            <label className="text-sm font-bold text-gray-700 flex items-center gap-1.5 mb-2">
+                                <Calendar className="w-3.5 h-3.5 text-red-400" />End Date *
+                            </label>
+                            <input type="date" value={endDate} min={startDate || today}
+                                onChange={e => setEndDate(e.target.value)}
+                                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-red-300 focus:ring-1 focus:ring-red-100 transition-all" />
+                        </div>
+                    </div>
+                    {startDate && endDate && new Date(endDate) > new Date(startDate) && (
+                        <p className="text-xs text-emerald-600 font-medium -mt-3">
+                            ✓ {Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24))} days of reminders
+                        </p>
+                    )}
+
+                    {/* Medicine Reminders */}
+                    <div className="border border-gray-100 rounded-2xl p-4 space-y-4">
+                        <div className="flex items-center gap-3">
+                            <input type="checkbox" id="medicine" checked={enableMedicine} onChange={e => setEnableMedicine(e.target.checked)}
+                                className="w-4 h-4 accent-amber-500 rounded" />
+                            <label htmlFor="medicine" className="text-sm font-bold text-gray-800 flex items-center gap-1.5 cursor-pointer">
+                                💊 Medicine Reminders
+                            </label>
+                        </div>
+
+                        {enableMedicine && (
+                            <div className="space-y-4 pl-7">
                                 <div>
-                                    <label className="text-xs font-bold text-slate-500 mb-1 block">Medicine Name</label>
+                                    <label className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 block">Medicine Name</label>
                                     <input type="text" value={medicineName} onChange={e => setMedicineName(e.target.value)}
                                         placeholder="e.g., Paracetamol 500mg"
-                                        className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm focus:border-amber-400 outline-none" />
+                                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-100 transition-all" />
                                 </div>
+
                                 <div>
-                                    <label className="text-xs font-bold text-slate-500 mb-2 block">Reminder Times</label>
+                                    <label className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                        <Clock className="w-3.5 h-3.5" />Reminder Times
+                                    </label>
                                     <div className="space-y-2">
                                         {reminderTimes.map((time, i) => (
                                             <div key={i} className="flex items-center gap-2">
-                                                <div className="flex items-center gap-2 flex-1 px-3 py-2 border-2 border-slate-200 rounded-xl bg-slate-50">
-                                                    <span className="text-slate-400 text-xs">⏰</span>
-                                                    <input type="time" value={time} onChange={e => handleTimeChange(i, e.target.value)}
-                                                        className="flex-1 bg-transparent text-sm font-medium focus:outline-none" />
+                                                <div className="flex items-center gap-2 flex-1 px-3 py-2 bg-orange-50 border border-orange-200 rounded-xl">
+                                                    <span className="text-orange-400 text-sm">⏰</span>
+                                                    <input type="time" value={time} onChange={e => updateTime(i, e.target.value)}
+                                                        className="flex-1 bg-transparent text-sm font-semibold text-gray-700 focus:outline-none" />
+                                                    <Clock className="w-4 h-4 text-gray-400" />
                                                 </div>
                                                 {reminderTimes.length > 1 && (
-                                                    <button onClick={() => handleRemoveTime(i)} className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-xl">
-                                                        <Trash2 className="w-4 h-4" />
+                                                    <button onClick={() => removeTime(i)} className="w-8 h-8 bg-red-50 hover:bg-red-100 rounded-lg flex items-center justify-center transition-colors">
+                                                        <Trash2 className="w-4 h-4 text-red-400" />
                                                     </button>
                                                 )}
                                             </div>
                                         ))}
+                                        {reminderTimes.length < 6 && (
+                                            <button onClick={addTime} className="flex items-center gap-1.5 text-sm text-amber-600 hover:text-amber-700 font-semibold transition-colors">
+                                                <Plus className="w-4 h-4" />Add Time
+                                            </button>
+                                        )}
                                     </div>
-                                    {reminderTimes.length < 6 && (
-                                        <button onClick={handleAddTime} className="mt-2 flex items-center gap-1 text-xs text-amber-600 font-bold hover:text-amber-700">
-                                            <Plus className="w-3 h-3" />Add Time
-                                        </button>
-                                    )}
                                 </div>
                             </div>
                         )}
                     </div>
 
-                    {/* Follow-up reminder */}
-                    <div className="border-2 border-slate-100 rounded-2xl p-4">
-                        <label className="flex items-center gap-3 cursor-pointer mb-3">
-                            <input type="checkbox" checked={enableFollowUp} onChange={e => setEnableFollowUp(e.target.checked)}
-                                className="w-4 h-4 rounded accent-amber-600" />
-                            <span className="text-sm font-bold text-slate-700">📅 Follow-up Reminder</span>
-                        </label>
-                        {enableFollowUp && (
-                            <div className="ml-7">
-                                <label className="text-xs font-bold text-slate-500 mb-1 block">Follow-up Date</label>
-                                <input type="date" value={followUpDate} min={new Date().toISOString().split('T')[0]}
-                                    onChange={e => setFollowUpDate(e.target.value)}
-                                    className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm focus:border-amber-400 outline-none" />
+                    {/* Follow-up Reminder */}
+                    <div className="border border-gray-100 rounded-2xl p-4 space-y-3">
+                        <div className="flex items-center gap-3">
+                            <input type="checkbox" id="followup" checked={enableFollowup} onChange={e => setEnableFollowup(e.target.checked)}
+                                className="w-4 h-4 accent-blue-500 rounded" />
+                            <label htmlFor="followup" className="text-sm font-bold text-gray-800 flex items-center gap-1.5 cursor-pointer">
+                                🗓️ Follow-up Reminder
+                            </label>
+                        </div>
+                        {enableFollowup && (
+                            <div className="pl-7">
+                                <label className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 block">Follow-up Date</label>
+                                <input type="date" value={followupDate} min={today}
+                                    onChange={e => setFollowupDate(e.target.value)}
+                                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 transition-all" />
                             </div>
                         )}
                     </div>
 
-                    {/* Info */}
-                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3">
-                        <p className="text-xs text-amber-700 font-medium">💡 Reminders run 24/7 via backend scheduler. SMS will be sent even when the app is closed.</p>
-                    </div>
+                    {/* Message */}
+                    {message.text && (
+                        <div className={`px-4 py-3 rounded-xl text-sm font-semibold ${message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+                            {message.text}
+                        </div>
+                    )}
 
                     {/* Buttons */}
-                    <div className="flex gap-3 pt-1">
-                        <button onClick={onClose} className="flex-1 py-3.5 border-2 border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 text-sm transition-all">
+                    <div className="flex gap-3 pt-2">
+                        <button onClick={onClose} className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-bold text-sm transition-all">
                             Cancel
                         </button>
-                        <button onClick={handleScheduleReminders} disabled={loading}
-                            className="flex-1 py-3.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white font-black rounded-2xl text-sm flex items-center justify-center gap-2 transition-all active:scale-95">
-                            {loading
-                                ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Scheduling...</>
-                                : <><Bell className="w-4 h-4" />Schedule Reminders</>}
+                        <button onClick={handleSubmit} disabled={loading}
+                            className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                            {loading ? (
+                                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Setting up...</>
+                            ) : (
+                                <><Bell className="w-4 h-4" />Schedule Reminders</>
+                            )}
                         </button>
                     </div>
                 </div>
