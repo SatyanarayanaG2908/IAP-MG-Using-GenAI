@@ -1,66 +1,40 @@
 // FILE PATH: frontend/src/services/pdfService.js
 
 import api from './api';
-import { ENDPOINTS, PDF_SERVICE_URL } from '../utils/constants';
+import { ENDPOINTS } from '../utils/constants';
 
-/**
- * PDF Service
- */
 const pdfService = {
-    /**
-     * Generate PDF report
-     */
-    generatePDF: async (sessionId, language = 'English') => {
+    generatePDF: async (sessionId) => {
         try {
             const response = await api.post(ENDPOINTS.GENERATE_PDF, {
-                sessionId,
-                language,
-            }, {
-                responseType: 'blob', // Important for downloading files
+                sessionId
             });
 
-            // Create download link
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `medical-report-${Date.now()}.pdf`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
+            if (response.data.success) {
+                const pdfUrl = response.data.pdfUrl;
+
+                // 🔥 OPEN PDF IN NEW TAB
+                const fullUrl = `${api.defaults.baseURL.replace('/api','')}${pdfUrl}`;
+                window.open(fullUrl, '_blank');
+
+                return {
+                    success: true,
+                    message: 'PDF opened successfully'
+                };
+            }
 
             return {
-                success: true,
-                message: 'PDF downloaded successfully',
+                success: false,
+                message: 'Failed to generate PDF'
             };
+
         } catch (error) {
             return {
                 success: false,
-                message: error.message || 'Failed to generate PDF',
+                message: error.message || 'PDF error'
             };
         }
-    },
-
-    /**
-     * Get PDF download URL
-     */
-    getPDFUrl: async (sessionId, language = 'English') => {
-        try {
-            const response = await api.post(`${ENDPOINTS.GENERATE_PDF}/url`, {
-                sessionId,
-                language,
-            });
-
-            return {
-                success: true,
-                url: response.data.url,
-            };
-        } catch (error) {
-            return {
-                success: false,
-                message: error.message || 'Failed to get PDF URL',
-            };
-        }
-    },
+    }
 };
 
 export default pdfService;
