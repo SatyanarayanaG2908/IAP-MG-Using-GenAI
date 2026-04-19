@@ -37,7 +37,7 @@ exports.sendEmail = async ({ to, subject, html, text, attachments }) => {   // â
         }
 
         const info = await transporter.sendMail({
-            from: `"IAP-MG Medical" <satyanarayanagattu523@gmail.com>`,
+            from: `"IAP-MG Medical" <${process.env.EMAIL_USER}>`,
             to,
             subject,
             html,
