@@ -2,7 +2,7 @@
 
 const axios = require('axios');
 
-const PDF_SERVICE_URL = process.env.PDF_SERVICE_URL || 'http://localhost:5001';
+const PDF_SERVICE_URL = process.env.PDF_SERVICE_URL || '';
 const SMS_SERVICE_URL = process.env.SMS_SERVICE_URL || 'http://localhost:5002';
 const TRANSLATION_SERVICE_URL = process.env.TRANSLATION_SERVICE_URL || 'http://localhost:5003';
 

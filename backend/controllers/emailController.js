@@ -46,7 +46,7 @@ exports.sendReport = async (req, res, next) => {
         // Generate PDF first (if not already generated)
         let pdfBuffer = null;
         try {
-            const PDF_SERVICE_URL = process.env.PDF_SERVICE_URL || 'http://localhost:5001';
+            const PDF_SERVICE_URL = process.env.PDF_SERVICE_URL || '';
 
             const userData = {
                 username: req.user.email.split('@')[0],

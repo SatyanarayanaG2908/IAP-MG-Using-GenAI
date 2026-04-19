@@ -2,7 +2,7 @@
 
 // API Base URL
 export const API_URL = "https://medical-backend-satya.onrender.com/api";
-export const PDF_SERVICE_URL = process.env.REACT_APP_PDF_SERVICE_URL || 'http://localhost:5001';
+export const PDF_SERVICE_URL = process.env.REACT_APP_PDF_SERVICE_URL || '';
 export const SMS_SERVICE_URL = process.env.REACT_APP_SMS_SERVICE_URL || 'http://localhost:5002';
 
 // Supported Languages

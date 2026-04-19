@@ -30,7 +30,7 @@ async function testPDFService() {
     console.log('STEP 2: Testing PDF Service');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-    const pdfUrl = process.env.PDF_SERVICE_URL || 'http://localhost:5001';
+    const pdfUrl = process.env.PDF_SERVICE_URL || '';
 
     try {
         const response = await axios.get(`${pdfUrl}/health`, { timeout: 3000 });

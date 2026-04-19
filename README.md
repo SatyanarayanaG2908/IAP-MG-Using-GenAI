@@ -232,7 +232,7 @@ TWILIO_AUTH_TOKEN=your_twilio_auth_token
 TWILIO_PHONE_NUMBER=+1xxxxxxxxxx
 
 # ── Python Services ───────────────────────────────
-PDF_SERVICE_URL=http://localhost:5001
+
 SMS_SERVICE_URL=http://localhost:5002
 TRANSLATION_SERVICE_URL=http://localhost:5003
 
