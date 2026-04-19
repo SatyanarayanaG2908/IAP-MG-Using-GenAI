@@ -1,7 +1,7 @@
 // FILE PATH: frontend/src/utils/constants.js
 
 // API Base URL
-export const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+export const API_URL = "https://medical-backend-satya.onrender.com/api";
 export const PDF_SERVICE_URL = process.env.REACT_APP_PDF_SERVICE_URL || 'http://localhost:5001';
 export const SMS_SERVICE_URL = process.env.REACT_APP_SMS_SERVICE_URL || 'http://localhost:5002';
 
