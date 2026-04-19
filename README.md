@@ -108,7 +108,7 @@
 <p align="center">
   <img src="./architecture.svg" width="100%" />
 </p>
-```
+
 
 ---
 
