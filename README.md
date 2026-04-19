@@ -105,9 +105,8 @@
 
 ## 🏗️ System Architecture
 
-```
 <p align="center">
-  <img src="assets/architecture.svg" width="100%" />
+  <img src="./architecture.svg" width="100%" />
 </p>
 ```
 
