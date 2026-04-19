@@ -1,11 +1,10 @@
-// FILE PATH: backend/server.js
-
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
+const path = require('path'); // 🔥 NEW
 
 // Load environment variables
 dotenv.config();
@@ -29,7 +28,6 @@ const schedulerService = require('./services/schedulerService');
 // Initialize express app
 const app = express();
 
-
 // ====================
 // MIDDLEWARE
 // ====================
@@ -37,7 +35,7 @@ const app = express();
 // Security headers
 app.use(helmet());
 
-// ✅ FIXED CORS CONFIG (IMPORTANT)
+// ✅ CORS CONFIG
 const allowedOrigins = [
     "https://iap-mg-using-genai-1.onrender.com",
     "http://localhost:3000"
@@ -45,7 +43,6 @@ const allowedOrigins = [
 
 app.use(cors({
     origin: function (origin, callback) {
-        // allow requests with no origin (like Postman)
         if (!origin) return callback(null, true);
 
         if (allowedOrigins.includes(origin)) {
@@ -60,6 +57,9 @@ app.use(cors({
 // Body parser
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// 🔥 SERVE PDF FILES (IMPORTANT)
+app.use('/reports', express.static(path.join(__dirname, 'public/reports')));
 
 // Logging (only in development)
 if (process.env.NODE_ENV === 'development') {
