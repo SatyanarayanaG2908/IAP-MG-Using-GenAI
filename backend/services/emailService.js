@@ -8,7 +8,7 @@ const createTransporter = () => {
         secure: false,
         auth: {
             user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASSWORD,
+            pass: process.env.EMAIL_PASS,
         },
         tls: {
             rejectUnauthorized: false,
@@ -17,7 +17,7 @@ const createTransporter = () => {
 
     // Debug logs (important)
     console.log("EMAIL_USER:", process.env.EMAIL_USER);
-    console.log("EMAIL_PASS:", process.env.EMAIL_PASSWORD ? "EXISTS" : "MISSING");
+    console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "EXISTS" : "MISSING");
 
     if (!transporter) {
         console.log("❌ Transporter creation failed");
